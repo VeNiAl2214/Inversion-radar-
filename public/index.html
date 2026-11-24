@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Radar de inversión</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><meta name="theme-color" content="#14213D">
+<style>
+:root{--bg:#EDF1F6;--sf:#fff;--ink:#14213D;--mut:#5B6B82;--line:#D5DDE8;--acc:#E09F1F;--up:#157A4F;--dn:#C0342A;--mid:#9A6A00;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#0E1626;--sf:#16213A;--ink:#E8EEF8;--mut:#93A3BC;--line:#26344F;--acc:#F0B33A;--up:#3CC48A;--dn:#F0736A;--mid:#F0B33A;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums}
+.w{max-width:560px;margin:0 auto;padding:16px 16px 40px}h1{font-size:26px;margin:4px 0;line-height:1.1}
+.sm{font-size:13px}.mut{color:var(--mut)}.up{color:var(--up)}.dn{color:var(--dn)}.midc{color:var(--mid)}
+nav{display:flex;gap:18px;border-bottom:1px solid var(--line);margin:12px 0}
+nav button{border:0;background:none;color:var(--mut);font:inherit;font-weight:500;padding:8px 0;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+nav button[aria-selected=true]{color:var(--ink);border-color:var(--acc);font-weight:600}
+.in{width:100%;border:1px solid var(--line);background:var(--sf);color:var(--ink);border-radius:8px;padding:10px;font:inherit}
+.r2{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:8px}
+.btn{width:100%;border:0;border-radius:8px;background:var(--ink);color:var(--bg);font:inherit;font-weight:600;padding:11px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.chip,.tag{border:1px solid var(--line);background:var(--sf);color:var(--ink);border-radius:99px;font:inherit;font-size:13px;padding:4px 13px;cursor:pointer}
+.card{background:var(--sf);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0}
+.top{display:flex;justify-content:space-between;gap:10px}.pill{text-align:right}.pill strong{display:block;font-size:34px;line-height:1}.pill span{font-weight:600}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)}.kv:last-child{border:0}
+.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:3px 0 8px}.bar i{display:block;height:100%;background:var(--ink)}
+ul{padding-left:18px;margin:4px 0}.foot{color:var(--mut);font-size:12px;margin-top:16px}
+#al .card{border-color:var(--dn)}
+</style></head><body><div class="w">
+<h1>Radar de inversión</h1><div id="clk" class="sm" style="font-weight:600"></div><div id="al"></div>
+<div id="login" hidden><div class="card"><p>Ingresá tu clave de acceso.</p><input class="in" id="key" type="password" autocomplete="current-password"><div style="height:8px"></div><button class="btn" id="ok">Entrar</button></div></div>
+<div id="app" hidden><nav><button data-t="a">Analizar</button><button data-t="p">Cartera</button></nav><div id="main"></div></div>
+<p class="foot">Los análisis son orientativos y no constituyen asesoría financiera. Invertir implica riesgo de pérdida.</p></div>
+<script>
+const $=s=>document.querySelector(s);let K=localStorage.getItem("k")||"",cur=null,tab="a",P=[];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const f=(n,d=2)=>(+n).toLocaleString("es-AR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fd=ms=>new Date(ms).toLocaleString("es-AR",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{"x-app-key":K,"content-type":"application/json"}});const j=await r.json().catch(()=>({}));if(!r.ok){if(r.status===401){localStorage.removeItem("k");K="";boot()}throw new Error(j.error||"Error "+r.status)}return j};
+function mkt(){const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"numeric",minute:"numeric",hour12:false}).formatToParts(new Date()),g=k=>p.find(x=>x.type===k).value,m=(+g("hour")%24)*60+ +g("minute");return!["Sat","Sun"].includes(g("weekday"))&&m>=570&&m<960}
+function tick(){const o=P.filter(p=>!p.notified&&p.sell<=Date.now());
+ $("#clk").innerHTML=new Date().toLocaleString("es-AR",{weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit",second:"2-digit"})+` <span class="${mkt()?"up":"mut"}">Mercado EE. UU. ${mkt()?"abierto":"cerrado"}</span>`;
+ const h=o.length?`<div class="card"><b class="dn">Es hora de vender: ${o.map(p=>esc(p.t)).join(", ")}</b></div>`:"";if($("#al").dataset.k!==h){$("#al").dataset.k=h;$("#al").innerHTML=h}}
+function chart(s){const mn=Math.min(...s),mx=Math.max(...s),w=300,h=80,pts=s.map((y,i)=>(i/(s.length-1)*w).toFixed(1)+","+(h-4-(y-mn)/(mx-mn||1)*(h-8)).toFixed(1)).join(" ");
+ return`<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" aria-label="Precio de los últimos 6 meses"><polyline fill="none" vector-effect="non-scaling-stroke" stroke="var(--${s.at(-1)>=s[0]?"up":"dn"})" stroke-width="2" points="${pts}"/></svg>`}
+const bar=(l,v)=>`<div class="kv" style="border:0;padding:0"><span>${l}</span><b>${v}</b></div><div class="bar"><i style="width:${v}%"></i></div>`;
+function viewA(){$("#main").innerHTML=`<div class="r2"><input class="in" id="tk" placeholder="Ticker: NVDA, AAPL, TLT" autocapitalize="characters"><select class="in" id="ty"><option>Acción</option><option>CEDEAR</option><option>Bono</option></select></div><button class="btn" id="go">Analizar</button><div class="chips">${["NVDA","MSFT","AAPL","KO","MELI","TLT","IEF"].map(t=>`<button class="chip" data-q="${t}">${t}</button>`).join("")}</div><div id="res"></div>`}
+async function analyze(t,ty){$("#res").innerHTML=`<div class="card mut">Analizando ${esc(t)}. Puede tardar unos segundos.</div>`;
+ try{const d=await api(`/api/analyze?t=${encodeURIComponent(t)}&type=${encodeURIComponent(ty)}`);cur=d;const c=d.veredicto==="Comprar"?"up":d.veredicto==="Mantener"?"midc":"dn";
+ const plan=d.veredicto==="Comprar"?`Comprar y mantener ${d.days[0]} a ${d.days[1]} días`:d.veredicto==="Mantener"?`Mantener hasta ${d.days[0]} días y reevaluar`:"No comprar ahora";
+ $("#res").innerHTML=`<div class="card"><div class="top"><div><b style="font-size:22px">${esc(d.t)}</b> <span class="mut">${esc(d.type)}</span><div>${f(d.price)} ${esc(d.cur||"")}</div></div><div class="pill"><strong class="${c}">${d.score}</strong><span class="${c}">${d.veredicto}</span></div></div>${chart(d.series)}
+ <p><b class="${c}">${plan}</b></p>${d.veredicto!=="Evitar"?`<div class="kv"><span>Objetivo de ganancia</span><b class="up">+${f(d.obj,1)} %</b></div><div class="kv"><span>Salir si cae</span><b class="dn">−${f(d.stop,1)} %</b></div>`:""}
+ <div style="margin-top:10px">${bar("Técnico",d.tech)}${bar("Fundamental",d.fund)}${bar("Noticias",d.news)}</div>
+ <p>${esc(d.summary)}</p><b>Por qué</b><ul>${d.reasons.map(x=>`<li>${esc(x)}</li>`).join("")}</ul><b>Riesgos</b><ul>${d.risks.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+ <div class="sm mut">RSI ${f(d.rsi,0)}, media de 50 ruedas ${f(d.sma50)}, de 200 ruedas ${f(d.sma200)}</div>
+ ${d.score>=50?`<div class="r2" style="margin-top:12px"><input class="in" id="amt" type="number" inputmode="decimal" value="200" aria-label="Monto en dólares"><button class="btn" id="buy">Comprar y seguir</button></div>`:""}</div>`}
+ catch(e){$("#res").innerHTML=`<div class="card dn">${esc(e.message)}</div>`}}
+async function buy(){const n=cur.score>=70?cur.days[1]:cur.days[0];
+ try{await api("/api/positions",{method:"POST",body:JSON.stringify({t:cur.t,type:cur.type,entry:cur.price,amt:+$("#amt").value||0,obj:cur.obj,stop:cur.stop,sell:Date.now()+n*864e5})});tab="p";render()}catch(e){alert(e.message)}}
+async function viewP(){$("#main").innerHTML=`<div class="card mut">Cargando…</div>`;
+ try{const d=await api("/api/positions");P=d.pos;let h=`<div class="sm mut" style="margin:8px 0">Recibirás un mail cuando una compra llegue a su objetivo, a su stop o a su fecha de venta.</div>`;
+ if(!P.length)h+=`<div class="card mut">Todavía no seguís ninguna compra. Analizá un activo y tocá Comprar y seguir.</div>`;
+ P.forEach(p=>{const L=Math.ceil((p.sell-Date.now())/864e5);h+=`<div class="card"><b>${esc(p.t)}</b> <span class="mut">${esc(p.type)}, US$ ${f(p.amt,0)}</span><div class="${p.notified||L<=0?"dn":""}" style="font-weight:600">${p.notified?"Aviso enviado: "+esc(p.notified):L<=0?"Hora de vender":"Vender el "+fd(p.sell)+" (faltan "+L+" días)"}</div><div class="sm mut">Entrada ${f(p.entry)}. Objetivo +${f(p.obj,1)} %, salir si cae −${f(p.stop,1)} %</div><div class="chips"><button class="tag" data-c="${esc(p.id)}:1">Vendida: ganó</button><button class="tag" data-c="${esc(p.id)}:-1">Vendida: perdió</button></div></div>`});
+ const w=d.log.filter(x=>x.res>0).length;h+=`<div class="card"><b>Diario de operaciones</b>${d.log.length?`<div class="kv"><span>Cerradas</span><b>${d.log.length}</b></div><div class="kv"><span>Aciertos</span><b>${w} (${Math.round(w/d.log.length*100)} %)</b></div>`:`<div class="mut sm">Cuando cierres una compra queda registrada acá.</div>`}</div>`;$("#main").innerHTML=h}
+ catch(e){$("#main").innerHTML=`<div class="card dn">${esc(e.message)}</div>`}}
+function render(){document.querySelectorAll("[data-t]").forEach(b=>b.setAttribute("aria-selected",b.dataset.t===tab));tab==="a"?viewA():viewP()}
+document.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;
+ if(t.dataset.t){tab=t.dataset.t;render()}
+ else if(t.dataset.q){const q=t.dataset.q;$("#tk").value=q;$("#ty").value=["TLT","IEF"].includes(q)?"Bono":q==="MELI"?"CEDEAR":"Acción";analyze(q,$("#ty").value)}
+ else if(t.id==="go"&&$("#tk").value.trim())analyze($("#tk").value.trim(),$("#ty").value);
+ else if(t.id==="buy")buy();
+ else if(t.dataset.c){const[id,r]=t.dataset.c.split(":");try{await api("/api/positions",{method:"PATCH",body:JSON.stringify({id,res:+r})});viewP()}catch(x){alert(x.message)}}
+ else if(t.id==="ok"){K=$("#key").value.trim();localStorage.setItem("k",K);boot()}});
+async function boot(){if(!K){$("#login").hidden=false;$("#app").hidden=true;return}$("#login").hidden=true;$("#app").hidden=false;render();try{P=(await api("/api/positions")).pos}catch(e){}}
+setInterval(tick,1000);tick();setInterval(async()=>{if(K)try{P=(await api("/api/positions")).pos}catch(e){}},300000);boot();
+if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js");
+</script></body></html>
